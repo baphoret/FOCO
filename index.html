@@ -116,6 +116,14 @@
     }
     @keyframes spin{to{transform:rotate(360deg)}}
     .overlay-text{margin-top:14px; color:#fff; font-weight:700; text-shadow:0 2px 10px rgba(0,0,0,.4)}
+
+    /* X link (logo) */
+    .xlink{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:44px; height:44px; border-radius:12px; padding:8px; margin-left:6px;
+      background:#0e1432; border:1px solid #26305b; box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+    }
+    .xlink svg{width:22px; height:22px; fill:#bcd1ff}
   </style>
 </head>
 <body>
@@ -150,6 +158,12 @@
     <div class="footer">
       <button id="connectBtn" class="btn">Connect Wallet</button>
       <button id="mintBtn" class="btn purple" disabled>Mint</button>
+      <!-- NEW: Add FOCO to Wallet -->
+      <button id="watchBtn" class="btn" disabled>Add FOCO to Wallet</button>
+      <!-- NEW: X (Twitter) link with logo -->
+      <a class="xlink" href="https://x.com/FOCOGiwa" target="_blank" rel="noopener noreferrer" title="FOCO on X">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.54 7.48L22.5 22H15.9l-4.6-6.15L6.02 22H3.26l6.98-7.98L1.5 2h6.78l4.15 5.58L18.24 2Zm-1.16 18.3h1.76L7.01 3.63H5.2l11.884 16.66Z"/></svg>
+      </a>
       <div id="status" class="muted"></div>
     </div>
   </div>
@@ -214,7 +228,7 @@
     const perMintEl = q("perMint"), maxPerTxEl = q("maxPerTx"), walletLimitEl = q("walletLimit");
     const youMintedEl = q("youMinted"), remainingEl = q("remaining");
     const tokenCAEl = q("tokenCA"), tokenExplorerLinkEl = q("tokenExplorerLink");
-    const connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
+    const connectBtn = q("connectBtn"), mintBtn = q("mintBtn"), watchBtn = q("watchBtn");
     const overlay = q("overlay"), overlayText = q("overlayText");
 
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
@@ -245,6 +259,9 @@
     let onboard, provider, signer, minter, token, tokenDec=18, tokenSym="FOCO";
     let priceWei=0n, perMint=0n, maxPerWallet=0n, maxPerTx=0n;
 
+    // connection state
+    let isConnected = false;
+
     // Try multiple function names until one succeeds
     async function tryUint(methods, ...args){
       for (const m of methods){
@@ -274,43 +291,11 @@
       return false;
     }
 
-    async function init(){
-      try{
-        await ensureEthers();
-        const OnboardCtor = getOnboardCtor();
-        const injectedF = getInjected();
-        const wcF = getWC();
-
-        if (OnboardCtor && injectedF){
-          const wallets = [ injectedF() ];
-          if (wcF) { try { wallets.push(wcF({ projectId: WC_PROJECT_ID })); } catch(e){} }
-          onboard = OnboardCtor({
-            wallets,
-            chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
-            appMetadata: { name:"FOCO Mint", description:"Mint Fortune Cookie (FOCO) tokens" }
-          });
-        }
-
-        // seed CA UI with fallback & copy behavior
-        const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
-        tokenCAEl.textContent = TOKEN_CA_FALLBACK;
-        tokenExplorerLinkEl.href = href;
-        tokenCAEl.addEventListener('click', async () => {
-          const txt = tokenCAEl.textContent.trim();
-          const ok = await copyToClipboard(txt);
-          const old = tokenCAEl.textContent;
-          tokenCAEl.textContent = ok ? "Copied!" : "Copy failed";
-          setTimeout(()=> tokenCAEl.textContent = old, 900);
-        });
-
-      }catch(e){ statusEl.textContent = prettyError(e) || "Init error"; }
-    }
-
     async function connect(){
       try{
         await ensureEthers();
         setLoading(true, "Connecting wallet…");
-        connectBtn.disabled = true;
+        // connectBtn.disabled = true;  // toggle model: buton disable etmiyoruz
 
         let eip1193;
         if (onboard){
@@ -365,14 +350,14 @@
         maxPerTxEl.textContent = (maxPerTx==0n) ? "Unlimited" : (fmt(maxPerTx) + " " + tokenSym);
         walletLimitEl.textContent = (maxPerWallet==0n) ? "Unlimited" : (fmt(maxPerWallet) + " " + tokenSym);
         youMintedEl.textContent  = fmt(youMinted) + " " + tokenSym;
-        remainingEl.textContent  = fmt(remainingHuman) + " " + tokenSym;
+        remainingEl.textContent  = ethers.formatUnits(rawBal, tokenDec) + " " + tokenSym;
 
         tokenCAEl.textContent = tokenAddr;
         tokenExplorerLinkEl.href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${tokenAddr}`;
 
         // SOLD OUT check first
         if (applySoldOutIfNeeded(remainingHuman)) {
-          // keep connect disabled; mint already disabled
+          // keep button state
         } else if (maxPerTx>0n && perMint>maxPerTx){
           statusEl.textContent = `Config error: tokensPerMint (${perMint}) > maxPerTx (${maxPerTx}).`;
           mintBtn.disabled = true;
@@ -381,13 +366,73 @@
           mintBtn.disabled = false;
         }
 
-        // lock the connect button
-        connectBtn.disabled = true;
-        connectBtn.textContent = "Connected";
+        // NEW: enable "Add FOCO to Wallet"
+        if (watchBtn){
+          watchBtn.disabled = false;
+          watchBtn.onclick = async () => {
+            try{
+              await provider.send('wallet_watchAsset', {
+                type: 'ERC20',
+                options: { address: tokenAddr, symbol: (tokenSym || 'FOCO').slice(0,11), decimals: tokenDec }
+              });
+              statusEl.textContent = "Token added to wallet";
+            }catch(e){ statusEl.textContent = prettyError(e); }
+          };
+        }
+
+        // NEW: toggle to Disconnect (BUT keep clickable)
+        isConnected = true;
+        connectBtn.textContent = "Disconnect";
+        connectBtn.disabled = false;
+        connectBtn.onclick = disconnect;
+
       }catch(e){
         statusEl.textContent = prettyError(e) || "Connection error";
         connectBtn.disabled = false; // allow retry
+        connectBtn.textContent = "Connect Wallet";
+        connectBtn.onclick = connect;
       } finally {
+        setLoading(false);
+      }
+    }
+
+    async function disconnect(){
+      try{
+        setLoading(true, "Disconnecting…");
+        // if onboard is present, properly disconnect the wallet
+        if (onboard){
+          try {
+            const state = onboard.state.get();
+            const w = state.wallets && state.wallets[0];
+            if (w && w.label) await onboard.disconnectWallet({ label: w.label });
+          } catch(_) {}
+        }
+      } finally {
+        // reset local state/UI
+        isConnected = false;
+        provider = signer = minter = token = null;
+
+        accountEl.textContent = "—";
+        networkEl.textContent = "—";
+        priceEl.textContent = "—";
+        perMintEl.textContent = "—";
+        maxPerTxEl.textContent = "—";
+        walletLimitEl.textContent = "—";
+        youMintedEl.textContent = "—";
+        remainingEl.textContent = "—";
+        statusEl.textContent = "Disconnected";
+
+        // reset CA display to fallback
+        tokenCAEl.textContent = TOKEN_CA_FALLBACK;
+        tokenExplorerLinkEl.href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
+
+        mintBtn.disabled = true;
+        if (watchBtn) { watchBtn.disabled = true; watchBtn.onclick = null; }
+
+        connectBtn.textContent = "Connect Wallet";
+        connectBtn.disabled = false;
+        connectBtn.onclick = connect;
+
         setLoading(false);
       }
     }
@@ -421,15 +466,15 @@
         youMintedEl.textContent = fmt(youMinted) + " " + tokenSym;
 
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
-        const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
-        remainingEl.textContent = fmt(remainingHuman) + " " + tokenSym;
+        remainingEl.textContent = ethers.formatUnits(rawBal, tokenDec) + " " + tokenSym;
 
         // SOLD OUT after mint?
-        applySoldOutIfNeeded(remainingHuman);
+        if (rawBal === 0n) {
+          statusEl.textContent = "Sold Out";
+        }
       }catch(e){
         statusEl.textContent = prettyError(e) || "Mint failed";
       } finally {
-        // re-enable mint only if not sold out
         if (!/Sold Out/i.test(statusEl.textContent)) mintBtn.disabled = false;
       }
     }
@@ -467,6 +512,7 @@
         } catch(e){ statusEl.textContent = prettyError(e) || "Init error"; }
       })();
 
+      // default: connect button connects; will toggle to disconnect after connect()
       q("connectBtn").onclick = connect;
       q("mintBtn").onclick = mint;
     })();
