@@ -66,6 +66,7 @@
     .btn:disabled{opacity:.6; cursor:not-allowed}
     .muted{color:var(--muted); font-size:14px}
     a{color:#bcd1ff; text-decoration:underline}
+    .addr{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
   </style>
 </head>
 <body>
@@ -82,6 +83,7 @@
       <div class="row"><div class="muted">Wallet limit</div><div id="walletLimit" class="pill">—</div></div>
       <div class="row"><div class="muted">You minted</div><div id="youMinted" class="pill">—</div></div>
       <div class="row"><div class="muted">Minter balance (remaining)</div><div id="remaining" class="pill">—</div></div>
+      <div class="row"><div class="muted">Token (CA)</div><div id="tokenCA" class="pill addr">—</div></div>
     </div>
 
     <div class="footer">
@@ -97,9 +99,10 @@
   <script src="https://unpkg.com/@web3-onboard/walletconnect/dist/umd/index.min.js"></script>
 
   <script>
-    // ====== Config ======
-    const MINTER_ADDRESS = "0x5952EAD3fCB11251A9755abFE70A3290366D2603"; // <-- replace
-    const WC_PROJECT_ID  = "fe5cba6a3f99f7da13a7f4d58d9bee81"; // optional
+    // ====== Config (your values) ======
+    const MINTER_ADDRESS = "0x5952EAD3fCB11251A9755abFE70A3290366D2603";
+    const WC_PROJECT_ID  = "fe5cba6a3f99f7da13a7f4d58d9bee81";
+    const TOKEN_CA_FALLBACK = "0x686eB0B1B2C888C673b4C20A625bD96E17261119"; // shown if minter.token() fails
 
     const GIWA = {
       chainId: '0x164ce', // 91342
@@ -109,24 +112,21 @@
       blockExplorerUrls: ['https://sepolia-explorer.giwa.io']
     };
 
-    // ABI superset (covers old & new minter variants)
+    // ABI superset (supports multiple minter variants)
     const MINTER_ABI = [
-      // price getters (try in order)
+      // price getters
       "function priceWei() view returns (uint256)",
       "function PRICE() view returns (uint256)",
       "function pricePerTokenWei() view returns (uint256)",
-
       // per-mint amount getters
       "function tokensPerMintHuman() view returns (uint256)",
       "function TOKENS_PER_MINT() view returns (uint256)",
       "function tokensPerMint() view returns (uint256)",
-
       // limits & accounting
       "function maxPerTxHuman() view returns (uint256)",
       "function maxPerWalletHuman() view returns (uint256)",
       "function mintedHuman(address) view returns (uint256)",
       "function minted(address) view returns (uint256)",
-
       // token + mint
       "function token() view returns (address)",
       "function mint() payable"
@@ -143,7 +143,8 @@
     const statusEl = q("status");
     const accountEl = q("account"), networkEl = q("network"), priceEl = q("price");
     const perMintEl = q("perMint"), walletLimitEl = q("walletLimit"), youMintedEl = q("youMinted");
-    const remainingEl = q("remaining"), connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
+    const remainingEl = q("remaining"), tokenCAEl = q("tokenCA");
+    const connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
 
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
     const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
@@ -172,9 +173,21 @@
         try{
           const v = await minter[m](...args);
           if (v !== undefined && v !== null) return BigInt(v.toString());
-        }catch(e){ console.warn(`call ${m} failed`, e); }
+        }catch(e){ /* try next */ }
       }
       throw new Error(`None of [${methods.join(", ")}] worked`);
+    }
+
+    // nicer error messages
+    function prettyError(e){
+      return (
+        e?.shortMessage ||
+        e?.reason ||
+        e?.message ||
+        e?.info?.error?.message ||
+        e?.error?.message ||
+        "Transaction failed"
+      );
     }
 
     async function init(){
@@ -186,25 +199,26 @@
 
         if (OnboardCtor && injectedF){
           const wallets = [ injectedF() ];
-          if (WC_PROJECT_ID && !WC_PROJECT_ID.startsWith('YOUR_') && wcF){
-            try { wallets.push(wcF({ projectId: WC_PROJECT_ID })); } catch(e){ console.warn("WC init failed:", e); }
+          if (wcF) {
+            try { wallets.push(wcF({ projectId: "fe5cba6a3f99f7da13a7f4d58d9bee81" })); } catch(e){}
           }
           onboard = OnboardCtor({
             wallets,
             chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
             appMetadata: { name:"FOCO Mint", description:"Mint Fortune Cookie (FOCO) tokens" }
           });
-        } else {
-          console.warn("Onboard not available — falling back to injected provider if present.");
         }
-      }catch(e){ console.error(e); statusEl.textContent = e.message || "Init error"; }
+        // show fallback token CA immediately
+        const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
+        tokenCAEl.innerHTML = `<a class="addr" target="_blank" href="${href}">${TOKEN_CA_FALLBACK}</a>`;
+      }catch(e){ statusEl.textContent = prettyError(e) || "Init error"; }
     }
 
     async function connect(){
       try{
         await ensureEthers();
-
         let eip1193;
+
         if (onboard){
           const wallets = await onboard.connectWallet();
           if (!wallets || !wallets.length) throw new Error("No wallet selected");
@@ -233,18 +247,15 @@
 
         minter = new ethers.Contract(MINTER_ADDRESS, MINTER_ABI, signer);
 
-        // Read price (supports old/new names)
+        // Read config (supports old/new names)
         priceWei = await tryUint(["priceWei","PRICE","pricePerTokenWei"]);
-        // Read tokens per mint
-        perMint = await tryUint(["tokensPerMintHuman","TOKENS_PER_MINT","tokensPerMint"]);
-        // Limits
-        try { maxPerWallet = await tryUint(["maxPerWalletHuman"]); } catch{ maxPerWallet = 0n; }
-        // Minted so far by this wallet
+        perMint  = await tryUint(["tokensPerMintHuman","TOKENS_PER_MINT","tokensPerMint"]);
+        try { maxPerWallet = await tryUint(["maxPerWalletHuman"]); } catch { maxPerWallet = 0n; }
+
         let youMinted = 0n;
         try { youMinted = await tryUint(["mintedHuman","minted"], addr); } catch {}
 
-        // Token + remaining
-        const tokenAddr = await minter.token();
+        const tokenAddr = (await minter.token().catch(()=>null)) || TOKEN_CA_FALLBACK;
         token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
         try { tokenDec = await token.decimals(); } catch{}
         try { tokenSym = await token.symbol(); } catch{}
@@ -254,15 +265,20 @@
 
         priceEl.textContent = ethers.formatEther(priceWei) + " " + GIWA.nativeCurrency.symbol;
         perMintEl.textContent = fmt(perMint) + " " + tokenSym;
-        walletLimitEl.textContent = (maxPerWallet==0n) ? "Unlimited" : (fmt(maxPerWallet) + " " + tokenSym);
-        youMintedEl.textContent = fmt(youMinted) + " " + tokenSym;
-        remainingEl.textContent = fmt(remainingHuman) + " " + tokenSym;
+        walletLimitEl.textContent = (maxPerWallet==0n) ? "Unlimited" : (fmt(maxPerWallet) + " " + tokenSym;
+        youMintedEl.textContent  = fmt(youMinted) + " " + tokenSym;
+        remainingEl.textContent  = fmt(remainingHuman) + " " + tokenSym;
 
+        const tokenHref = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${tokenAddr}`;
+        tokenCAEl.innerHTML = `<a class="addr" target="_blank" href="${tokenHref}">${tokenAddr}</a>`;
+
+        // UI: lock the connect button
+        connectBtn.disabled = true;
+        connectBtn.textContent = "Connected";
         mintBtn.disabled = false;
         statusEl.textContent = "Ready";
       }catch(e){
-        console.error(e);
-        statusEl.textContent = e.shortMessage || e.message || "Connection error";
+        statusEl.textContent = prettyError(e) || "Connection error";
       }
     }
 
@@ -272,7 +288,7 @@
         statusEl.textContent = "Sending transaction…";
         const tx = await minter.mint({ value: priceWei });
         statusEl.textContent = "Waiting for confirmation…";
-        const rc = await tx.wait();
+        await tx.wait();
         const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/tx/${tx.hash}`;
         statusEl.innerHTML = `Done ✅ Tx: <a target="_blank" href="${href}" rel="noreferrer">${tx.hash.slice(0,10)}…</a>`;
 
@@ -285,13 +301,12 @@
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
         remainingEl.textContent = fmt(remainingHuman) + " " + tokenSym;
       }catch(e){
-        console.error(e);
-        statusEl.textContent = e.shortMessage || e.message || "Mint failed";
+        statusEl.textContent = prettyError(e) || "Mint failed";
       }
     }
 
-    q("connectBtn").onclick = connect;
-    q("mintBtn").onclick = mint;
+    connectBtn.onclick = connect;
+    mintBtn.onclick = mint;
     init();
   </script>
 </body>
