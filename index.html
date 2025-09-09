@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
-  <title>FOCO Mint</title>
+  <title>Fortune Cookie (FOCO) Mint</title>
   <style>
     :root{
-      --bg:#090e1f; --card:#131a3b; --text:#e9efff; --muted:#9fb0da;
-      --primary:#6b7bff; --primary2:#9b6bff; --accent:#C58E4B; --accent2:#ffd9a3;
+      --bg:#0a0f20; --card:#12183a; --text:#eef2ff; --muted:#9fb0da;
+      --cookie:#C58E4B; --cookie2:#F0C27B; --cookie3:#8a5a2c;
+      --primary:#6b7bff; --primary2:#9b6bff; --sugar:#ffe8be;
+      --ring:rgba(107,123,255,.35);
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
       margin:0; color:var(--text);
-      font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Inter, Arial, sans-serif;
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Inter, Roboto, Arial, sans-serif;
       display:flex; justify-content:center; align-items:flex-start;
 
       /* BIG fortune cookies background */
@@ -21,45 +23,74 @@
         radial-gradient(1200px 800px at 70% -10%, rgba(255,255,255,.06), transparent 60%),
         radial-gradient(900px 600px at -20% 120%, rgba(155,107,255,.18), transparent 60%),
         url("data:image/svg+xml;utf8,\
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'>\
-          <rect width='220' height='220' fill='none'/>\
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 260 260'>\
+          <rect width='260' height='260' fill='none'/>\
           <g opacity='0.22'>\
-            <path d='M60 100 Q110 50 160 100 Q110 150 60 100 Z' fill='%23C58E4B'/>\
-            <rect x='135' y='78' width='54' height='9' rx='2' fill='%23ffffff' transform='rotate(18 162 82)'/>\
+            <path d='M70 120 Q130 58 190 120 Q130 182 70 120 Z' fill='%23C58E4B'/>\
+            <rect x='165' y='93' width='70' height='10' rx='3' fill='%23ffffff' transform='rotate(18 200 98)'/>\
           </g>\
         </svg>");
-      background-size:auto, auto, 300px 300px;
+      background-size:auto, auto, 340px 340px;
       animation:bgfloat 24s linear infinite;
     }
     @keyframes bgfloat{
       0%{background-position:0 0, 0 0, 0 0}
-      50%{background-position:0 0, 0 0, 160px 130px}
+      50%{background-position:0 0, 0 0, 180px 140px}
       100%{background-position:0 0, 0 0, 0 0}
     }
+
     .card{
-      width:100%; max-width:760px; margin:6vh 18px; background:var(--card);
-      border-radius:18px; padding:26px; box-shadow:0 18px 40px rgba(0,0,0,.35);
+      width:100%; max-width:800px; margin:6vh 18px; background:var(--card);
+      border-radius:22px; padding:28px; box-shadow:0 18px 40px rgba(0,0,0,.38);
       border:1px solid rgba(255,255,255,.08); position:relative; overflow:hidden;
+      backdrop-filter:saturate(1.1) blur(0.3px);
     }
+    /* cookie corner deco */
+    .cookie-top, .cookie-bottom{
+      position:absolute; width:120px; height:120px; border-radius:50%;
+      background: radial-gradient(circle at 30% 30%, var(--cookie2), var(--cookie));
+      box-shadow: inset 0 6px 18px rgba(0,0,0,.25), 0 8px 24px rgba(0,0,0,.25);
+      opacity:.25; filter: blur(0.2px);
+    }
+    .cookie-top{ right:-40px; top:-40px; transform:rotate(-18deg)}
+    .cookie-bottom{ left:-50px; bottom:-50px; transform:rotate(22deg)}
+    .choc{
+      position:absolute; width:8px; height:8px; border-radius:50%; background:var(--cookie3);
+      box-shadow: 14px 8px 0 var(--cookie3), 26px -3px 0 var(--cookie3),
+                  48px 10px 0 var(--cookie3), 64px -2px 0 var(--cookie3);
+      opacity:.45;
+    }
+    .choc.t{ right:30px; top:24px}
+    .choc.b{ left:30px; bottom:28px}
+
     .ribbon{
-      position:absolute; inset:auto -40px -40px auto; transform:rotate(-18deg);
-      background:linear-gradient(135deg, var(--accent2), var(--accent)); color:#5a3c1b;
-      padding:6px 18px; border-radius:12px; font-weight:800; box-shadow:0 4px 16px rgba(197,142,75,.35);
+      position:absolute; inset:auto -46px -40px auto; transform:rotate(-18deg);
+      background:linear-gradient(135deg, var(--sugar), var(--cookie));
+      color:#5a3c1b; padding:8px 20px; border-radius:14px; font-weight:800;
+      box-shadow:0 6px 18px rgba(197,142,75,.35);
     }
-    h1{margin:0 0 6px; font-size:28px; letter-spacing:.2px}
+
+    h1{margin:0 0 6px; font-size:30px; letter-spacing:.2px}
     .sub{color:var(--muted); font-size:14px}
-    .rows{display:grid; grid-auto-rows:minmax(28px,auto); gap:12px; margin:18px 0}
+
+    .rows{display:grid; grid-auto-rows:minmax(28px,auto); gap:12px; margin:20px 0}
     .row{display:flex; justify-content:space-between; align-items:center; gap:10px}
     .pill{
-      background:#0f1533; padding:8px 12px; border-radius:12px; border:1px solid #2a335f;
-      min-width:160px; text-align:right; font-variant-numeric:tabular-nums;
+      background:#0e1432; padding:10px 12px; border-radius:14px; border:1px solid #26305b;
+      min-width:170px; text-align:right; font-variant-numeric:tabular-nums;
+      box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
     }
-    .footer{display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap}
+
+    .footer{display:flex; gap:12px; align-items:center; margin-top:16px; flex-wrap:wrap}
     .btn{
-      border:0; color:#fff; padding:12px 16px; border-radius:14px; cursor:pointer; font-weight:800;
-      background:linear-gradient(135deg, var(--primary), var(--primary2));
-      box-shadow:0 10px 22px rgba(107,123,255,.35), inset 0 0 0 1px rgba(255,255,255,.1);
+      border:0; color:#fff; padding:12px 18px; border-radius:16px; cursor:pointer; font-weight:800;
+      background:linear-gradient(135deg, #f7b267, #f79d65, #f4845f);
+      box-shadow:0 10px 22px rgba(244,132,95,.35), inset 0 0 0 1px rgba(255,255,255,.12);
       transition:transform .05s ease, filter .2s ease;
+    }
+    .btn.purple{
+      background:linear-gradient(135deg, var(--primary), var(--primary2));
+      box-shadow:0 10px 22px var(--ring), inset 0 0 0 1px rgba(255,255,255,.12);
     }
     .btn:hover{filter:brightness(1.05)}
     .btn:active{transform:translateY(1px)}
@@ -68,13 +99,34 @@
     a{color:#bcd1ff; text-decoration:underline}
     .addr{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
     .copyable{cursor:pointer; user-select:all}
-    .hint{font-size:12px; color:var(--muted); margin-top:2px}
+    .hint{font-size:12px; color:var(--muted); margin-top:2px; text-align:right}
+
+    /* Loading overlay */
+    .overlay{
+      position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+      background:rgba(10,15,32,.55); z-index:50; backdrop-filter:blur(2px);
+    }
+    .overlay.show{display:flex}
+    .spinner{
+      width:64px; height:64px; border-radius:50%;
+      background:
+        radial-gradient(circle at 35% 35%, #fff 10%, transparent 11%) 8px 8px/18px 18px no-repeat,
+        radial-gradient(circle at 65% 70%, #fff 10%, transparent 11%) 2px 0/18px 18px no-repeat,
+        conic-gradient(from 0deg, var(--cookie) 0 120deg, var(--cookie2) 120deg 240deg, var(--cookie3) 240deg 360deg);
+      animation:spin 1.1s linear infinite;
+      box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 0 18px rgba(0,0,0,.25);
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .overlay-text{margin-top:14px; color:#fff; font-weight:700; text-shadow:0 2px 10px rgba(0,0,0,.4)}
   </style>
 </head>
 <body>
   <div class="card">
+    <div class="cookie-top"></div><div class="choc t"></div>
+    <div class="cookie-bottom"></div><div class="choc b"></div>
+
     <div class="ribbon">🥠 Fortune Time</div>
-    <h1>Fortune Cookie (FOCO) — Mint</h1>
+    <h1>Fortune Cookie (FOCO) Mint</h1>
     <div class="sub">Connect a wallet (MetaMask, Rabby, or WalletConnect) and mint in one click.</div>
 
     <div class="rows">
@@ -99,8 +151,16 @@
 
     <div class="footer">
       <button id="connectBtn" class="btn">Connect Wallet</button>
-      <button id="mintBtn" class="btn" disabled>Mint</button>
+      <button id="mintBtn" class="btn purple" disabled>Mint</button>
       <div id="status" class="muted"></div>
+    </div>
+  </div>
+
+  <!-- Loading overlay -->
+  <div id="overlay" class="overlay">
+    <div style="display:flex; flex-direction:column; align-items:center">
+      <div class="spinner"></div>
+      <div id="overlayText" class="overlay-text">Brewing fortunes…</div>
     </div>
   </div>
 
@@ -157,19 +217,21 @@
     const youMintedEl = q("youMinted"), remainingEl = q("remaining");
     const tokenCAEl = q("tokenCA"), tokenExplorerLinkEl = q("tokenExplorerLink");
     const connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
+    const overlay = q("overlay"), overlayText = q("overlayText");
 
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
     const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
 
+    const setLoading = (on, text) => {
+      if (text) overlayText.textContent = text;
+      overlay.classList[on ? 'add' : 'remove']('show');
+    };
+
     // Clipboard copy with fallback
     async function copyToClipboard(text){
-      try{
-        await navigator.clipboard.writeText(text);
-        return true;
-      }catch{
-        const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
-        ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); return ok;
-      }
+      try{ await navigator.clipboard.writeText(text); return true; }
+      catch{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+             ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); return ok; }
     }
 
     // load ethers with fallback CDNs
@@ -216,9 +278,7 @@
 
         if (OnboardCtor && injectedF){
           const wallets = [ injectedF() ];
-          if (wcF) {
-            try { wallets.push(wcF({ projectId: "fe5cba6a3f99f7da13a7f4d58d9bee81" })); } catch(e){}
-          }
+          if (wcF) { try { wallets.push(wcF({ projectId: WC_PROJECT_ID })); } catch(e){} }
           onboard = OnboardCtor({
             wallets,
             chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
@@ -226,12 +286,10 @@
           });
         }
 
-        // seed CA UI with fallback
+        // seed CA UI with fallback & copy behavior
         const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
         tokenCAEl.textContent = TOKEN_CA_FALLBACK;
         tokenExplorerLinkEl.href = href;
-
-        // click-to-copy behavior
         tokenCAEl.addEventListener('click', async () => {
           const txt = tokenCAEl.textContent.trim();
           const ok = await copyToClipboard(txt);
@@ -246,8 +304,10 @@
     async function connect(){
       try{
         await ensureEthers();
-        let eip1193;
+        setLoading(true, "Connecting wallet…");
+        connectBtn.disabled = true;
 
+        let eip1193;
         if (onboard){
           const wallets = await onboard.connectWallet();
           if (!wallets || !wallets.length) throw new Error("No wallet selected");
@@ -276,6 +336,8 @@
 
         minter = new ethers.Contract(MINTER_ADDRESS, MINTER_ABI, signer);
 
+        setLoading(true, "Reading on-chain config…");
+
         // Read config (supports old/new names)
         priceWei = await tryUint(["priceWei","PRICE","pricePerTokenWei"]);
         perMint  = await tryUint(["tokensPerMintHuman","TOKENS_PER_MINT","tokensPerMint"]);
@@ -300,7 +362,6 @@
         youMintedEl.textContent  = fmt(youMinted) + " " + tokenSym;
         remainingEl.textContent  = fmt(remainingHuman) + " " + tokenSym;
 
-        // update CA + explorer link
         tokenCAEl.textContent = tokenAddr;
         tokenExplorerLinkEl.href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${tokenAddr}`;
 
@@ -318,6 +379,9 @@
         connectBtn.textContent = "Connected";
       }catch(e){
         statusEl.textContent = prettyError(e) || "Connection error";
+        connectBtn.disabled = false; // allow retry
+      } finally {
+        setLoading(false);
       }
     }
 
