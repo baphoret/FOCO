@@ -99,7 +99,7 @@
   <script>
     // ====== Config ======
     const MINTER_ADDRESS = "0x5952EAD3fCB11251A9755abFE70A3290366D2603"; // <-- replace
-    const WC_PROJECT_ID  = "fe5cba6a3f99f7da13a7f4d58d9bee81"; // optional (shows WC if valid)
+    const WC_PROJECT_ID  = "fe5cba6a3f99f7da13a7f4d58d9bee81"; // optional
 
     const GIWA = {
       chainId: '0x164ce', // 91342
@@ -109,15 +109,29 @@
       blockExplorerUrls: ['https://sepolia-explorer.giwa.io']
     };
 
+    // ABI superset (covers old & new minter variants)
     const MINTER_ABI = [
-      "function token() view returns (address)",
+      // price getters (try in order)
       "function priceWei() view returns (uint256)",
+      "function PRICE() view returns (uint256)",
+      "function pricePerTokenWei() view returns (uint256)",
+
+      // per-mint amount getters
       "function tokensPerMintHuman() view returns (uint256)",
+      "function TOKENS_PER_MINT() view returns (uint256)",
+      "function tokensPerMint() view returns (uint256)",
+
+      // limits & accounting
       "function maxPerTxHuman() view returns (uint256)",
       "function maxPerWalletHuman() view returns (uint256)",
       "function mintedHuman(address) view returns (uint256)",
+      "function minted(address) view returns (uint256)",
+
+      // token + mint
+      "function token() view returns (address)",
       "function mint() payable"
     ];
+
     const ERC20_ABI = [
       "function balanceOf(address) view returns (uint256)",
       "function decimals() view returns (uint8)",
@@ -130,70 +144,60 @@
     const accountEl = q("account"), networkEl = q("network"), priceEl = q("price");
     const perMintEl = q("perMint"), walletLimitEl = q("walletLimit"), youMintedEl = q("youMinted");
     const remainingEl = q("remaining"), connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
+
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
     const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
 
-    // Dynamically load a script (with fallback CDNs)
-    function loadScript(src){ return new Promise((res, rej)=>{ const s=document.createElement('script'); s.src=src; s.async=false; s.onload=res; s.onerror=()=>rej(new Error('Failed: '+src)); document.head.appendChild(s); }); }
-
-    // Ensure ethers is present (try cdnjs then jsDelivr)
+    // load ethers with fallback CDNs
+    function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=false;s.onload=res;s.onerror=()=>rej(new Error('Failed '+src));document.head.appendChild(s);});}
     async function ensureEthers(){
       if (window.ethers) return;
-      try { await loadScript("https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"); }
-      catch(e){ console.warn(e); }
-      if (!window.ethers) {
-        try { await loadScript("https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.min.js"); }
-        catch(e){ console.warn(e); }
-      }
+      try { await loadScript("https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"); } catch(e){}
+      if (!window.ethers) { try { await loadScript("https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.min.js"); } catch(e){} }
       if (!window.ethers) throw new Error("Failed to load ethers.js");
     }
 
-    // Onboard UMD helpers
-    function getOnboardCtor(){
-      if (window.Onboard && typeof window.Onboard === 'function') return window.Onboard;
-      if (window.Onboard && typeof window.Onboard.default === 'function') return window.Onboard.default;
-      if (window.OnboardCore && typeof window.OnboardCore.Onboard === 'function') return window.OnboardCore.Onboard;
-      return null;
-    }
-    function getInjectedFactory(){ const m=window.OnboardInjectedWallets; return m ? (m.default||m) : null; }
-    function getWalletConnectFactory(){ const m=window.OnboardWalletConnect; return m ? (m.default||m) : null; }
+    // Onboard helpers
+    const getOnboardCtor=()=> (window.Onboard?.default||window.Onboard||window.OnboardCore?.Onboard||null);
+    const getInjected = ()=> (window.OnboardInjectedWallets?.default||window.OnboardInjectedWallets||null);
+    const getWC       = ()=> (window.OnboardWalletConnect?.default||window.OnboardWalletConnect||null);
 
     let onboard, provider, signer, minter, token, tokenDec=18, tokenSym="FOCO";
     let priceWei=0n, perMint=0n, maxPerWallet=0n;
 
-    // Init Onboard after ethers is ready
+    // Try multiple function names until one succeeds
+    async function tryUint(methods, ...args){
+      for (const m of methods){
+        if (!minter[m]) continue;
+        try{
+          const v = await minter[m](...args);
+          if (v !== undefined && v !== null) return BigInt(v.toString());
+        }catch(e){ console.warn(`call ${m} failed`, e); }
+      }
+      throw new Error(`None of [${methods.join(", ")}] worked`);
+    }
+
     async function init(){
       try{
         await ensureEthers();
-
         const OnboardCtor = getOnboardCtor();
-        const injectedFactory = getInjectedFactory();
-        const wcFactory = getWalletConnectFactory();
+        const injectedF = getInjected();
+        const wcF = getWC();
 
-        if (OnboardCtor && injectedFactory) {
-          const wallets = [ injectedFactory() ];
-          if (WC_PROJECT_ID && !WC_PROJECT_ID.startsWith('YOUR_') && wcFactory) {
-            try { wallets.push(wcFactory({ projectId: WC_PROJECT_ID })); } catch(e){ console.warn("WC init failed:", e); }
+        if (OnboardCtor && injectedF){
+          const wallets = [ injectedF() ];
+          if (WC_PROJECT_ID && !WC_PROJECT_ID.startsWith('YOUR_') && wcF){
+            try { wallets.push(wcF({ projectId: WC_PROJECT_ID })); } catch(e){ console.warn("WC init failed:", e); }
           }
           onboard = OnboardCtor({
             wallets,
             chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
-            appMetadata: {
-              name: "FOCO Mint",
-              description: "Mint Fortune Cookie (FOCO) tokens",
-              recommendedInjectedWallets: [
-                { name: 'MetaMask', url: 'https://metamask.io' },
-                { name: 'Rabby', url: 'https://rabby.io' }
-              ]
-            }
+            appMetadata: { name:"FOCO Mint", description:"Mint Fortune Cookie (FOCO) tokens" }
           });
         } else {
-          console.warn("Onboard not available — will use injected provider fallback.");
+          console.warn("Onboard not available — falling back to injected provider if present.");
         }
-      }catch(e){
-        console.error(e);
-        statusEl.textContent = e.message || "Init error";
-      }
+      }catch(e){ console.error(e); statusEl.textContent = e.message || "Init error"; }
     }
 
     async function connect(){
@@ -201,24 +205,20 @@
         await ensureEthers();
 
         let eip1193;
-        if (onboard) {
+        if (onboard){
           const wallets = await onboard.connectWallet();
           if (!wallets || !wallets.length) throw new Error("No wallet selected");
-          const wallet = wallets[0];
-          await onboard.setChain({ chainId: GIWA.chainId, wallet: wallet.label });
-          eip1193 = wallet.provider;
+          const w = wallets[0];
+          await onboard.setChain({ chainId: GIWA.chainId, wallet: w.label });
+          eip1193 = w.provider;
         } else {
           if (!window.ethereum) throw new Error("No wallet provider found");
           eip1193 = window.ethereum;
           const tmp = new ethers.BrowserProvider(eip1193);
           const net = await tmp.getNetwork();
-          if (net.chainId !== BigInt(parseInt(GIWA.chainId,16))) {
-            try {
-              await eip1193.request({ method:'wallet_switchEthereumChain', params:[{ chainId: GIWA.chainId }] });
-            } catch (e) {
-              if (e.code === 4902) await eip1193.request({ method:'wallet_addEthereumChain', params:[GIWA] });
-              else throw e;
-            }
+          if (net.chainId !== BigInt(parseInt(GIWA.chainId,16))){
+            try { await eip1193.request({ method:'wallet_switchEthereumChain', params:[{ chainId: GIWA.chainId }] }); }
+            catch(e){ if (e.code === 4902) await eip1193.request({ method:'wallet_addEthereumChain', params:[GIWA] }); else throw e; }
           }
           await eip1193.request({ method:'eth_requestAccounts' });
         }
@@ -233,16 +233,21 @@
 
         minter = new ethers.Contract(MINTER_ADDRESS, MINTER_ABI, signer);
 
-        priceWei = await minter.priceWei();
-        perMint  = await minter.tokensPerMintHuman();
-        const maxPerTx = await minter.maxPerTxHuman(); // unused in UI
-        maxPerWallet = await minter.maxPerWalletHuman();
-        const youMinted = await minter.mintedHuman(addr);
+        // Read price (supports old/new names)
+        priceWei = await tryUint(["priceWei","PRICE","pricePerTokenWei"]);
+        // Read tokens per mint
+        perMint = await tryUint(["tokensPerMintHuman","TOKENS_PER_MINT","tokensPerMint"]);
+        // Limits
+        try { maxPerWallet = await tryUint(["maxPerWalletHuman"]); } catch{ maxPerWallet = 0n; }
+        // Minted so far by this wallet
+        let youMinted = 0n;
+        try { youMinted = await tryUint(["mintedHuman","minted"], addr); } catch {}
 
+        // Token + remaining
         const tokenAddr = await minter.token();
         token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
-        tokenDec = await token.decimals().catch(()=>18);
-        tokenSym = await token.symbol().catch(()=> "TOKEN");
+        try { tokenDec = await token.decimals(); } catch{}
+        try { tokenSym = await token.symbol(); } catch{}
 
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
@@ -272,8 +277,10 @@
         statusEl.innerHTML = `Done ✅ Tx: <a target="_blank" href="${href}" rel="noreferrer">${tx.hash.slice(0,10)}…</a>`;
 
         const addr = await signer.getAddress();
-        const youMinted = await minter.mintedHuman(addr);
+        let youMinted = 0n;
+        try { youMinted = await tryUint(["mintedHuman","minted"], addr); } catch {}
         youMintedEl.textContent = fmt(youMinted) + " " + tokenSym;
+
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
         remainingEl.textContent = fmt(remainingHuman) + " " + tokenSym;
@@ -283,7 +290,6 @@
       }
     }
 
-    // Wire up buttons and init
     q("connectBtn").onclick = connect;
     q("mintBtn").onclick = mint;
     init();
