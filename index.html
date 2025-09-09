@@ -158,8 +158,6 @@
     <div class="footer">
       <button id="connectBtn" class="btn">Connect Wallet</button>
       <button id="mintBtn" class="btn purple" disabled>Mint</button>
-      <!-- Add FOCO to Wallet -->
-      <button id="watchBtn" class="btn" disabled>Add FOCO to Wallet</button>
       <!-- X (Twitter) link with logo -->
       <a class="xlink" href="https://x.com/FOCOGiwa" target="_blank" rel="noopener noreferrer" title="FOCO on X">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.54 7.48L22.5 22H15.9l-4.6-6.15L6.02 22H3.26l6.98-7.98L1.5 2h6.78l4.15 5.58L18.24 2Zm-1.16 18.3h1.76L7.01 3.63H5.2l11.884 16.66Z"/></svg>
@@ -228,7 +226,7 @@
     const perMintEl = q("perMint"), maxPerTxEl = q("maxPerTx"), walletLimitEl = q("walletLimit");
     const youMintedEl = q("youMinted"), remainingEl = q("remaining");
     const tokenCAEl = q("tokenCA"), tokenExplorerLinkEl = q("tokenExplorerLink");
-    const connectBtn = q("connectBtn"), mintBtn = q("mintBtn"), watchBtn = q("watchBtn");
+    const connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
     const overlay = q("overlay"), overlayText = q("overlayText");
 
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
@@ -365,33 +363,6 @@
           mintBtn.disabled = false;
         }
 
-        // enable "Add FOCO to Wallet" (raw EIP-1193 request)
-        if (watchBtn){
-          watchBtn.disabled = false;
-          watchBtn.onclick = async () => {
-            try{
-              const raw = (provider && (provider.provider || provider._provider)) || window.ethereum;
-              if (!raw || !raw.request) throw new Error("Wallet doesn't support watchAsset");
-              const wasAdded = await raw.request({
-                method: 'wallet_watchAsset',
-                params: {
-                  type: 'ERC20',
-                  options: {
-                    address: tokenAddr,
-                    symbol: (tokenSym || 'FOCO').slice(0,11),
-                    decimals: Number(tokenDec) || 18
-                    // image: 'https://yourcdn.com/foco.png' // optional
-                  }
-                }
-              });
-              statusEl.textContent = wasAdded ? 'Token added to wallet' : 'Action cancelled';
-            }catch(e){
-              const msg = (e && (e.message || e.shortMessage)) || 'wallet_watchAsset not supported by this wallet';
-              statusEl.textContent = msg;
-            }
-          };
-        }
-
         // toggle to Disconnect
         isConnected = true;
         connectBtn.textContent = "Disconnect";
@@ -438,7 +409,6 @@
         tokenExplorerLinkEl.href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
 
         mintBtn.disabled = true;
-        if (watchBtn) { watchBtn.disabled = true; watchBtn.onclick = null; }
 
         connectBtn.textContent = "Connect Wallet";
         connectBtn.disabled = false;
