@@ -38,14 +38,12 @@
       50%{background-position:0 0, 0 0, 180px 140px}
       100%{background-position:0 0, 0 0, 0 0}
     }
-
     .card{
       width:100%; max-width:800px; margin:6vh 18px; background:var(--card);
       border-radius:22px; padding:28px; box-shadow:0 18px 40px rgba(0,0,0,.38);
       border:1px solid rgba(255,255,255,.08); position:relative; overflow:hidden;
       backdrop-filter:saturate(1.1) blur(0.3px);
     }
-    /* cookie corner deco */
     .cookie-top, .cookie-bottom{
       position:absolute; width:120px; height:120px; border-radius:50%;
       background: radial-gradient(circle at 30% 30%, var(--cookie2), var(--cookie));
@@ -137,7 +135,7 @@
       <div class="row"><div class="muted">Max per tx</div><div id="maxPerTx" class="pill">—</div></div>
       <div class="row"><div class="muted">Wallet limit</div><div id="walletLimit" class="pill">—</div></div>
       <div class="row"><div class="muted">You minted</div><div id="youMinted" class="pill">—</div></div>
-      <div class="row"><div class="muted">Minter balance (remaining)</div><div id="remaining" class="pill">—</div></div>
+      <div class="row"><div class="muted">Remaining FOCO Balance</div><div id="remaining" class="pill">—</div></div>
 
       <!-- Token CA (click to copy) + separate explorer link -->
       <div class="row">
@@ -221,13 +219,9 @@
 
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
     const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
+    const setLoading = (on, text) => { if (text) overlayText.textContent = text; overlay.classList[on ? 'add' : 'remove']('show'); };
 
-    const setLoading = (on, text) => {
-      if (text) overlayText.textContent = text;
-      overlay.classList[on ? 'add' : 'remove']('show');
-    };
-
-    // Clipboard copy with fallback
+    // Clipboard copy
     async function copyToClipboard(text){
       try{ await navigator.clipboard.writeText(text); return true; }
       catch{ const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
@@ -267,6 +261,17 @@
       const txt = e?.shortMessage || e?.reason || e?.message || e?.info?.error?.message || e?.error?.message;
       if (txt) return txt;
       try { return JSON.stringify(e); } catch { return "Transaction failed"; }
+    }
+
+    // Handle SOLD OUT state
+    function applySoldOutIfNeeded(remainingHuman){
+      if (remainingHuman === 0n){
+        remainingEl.textContent = "0 " + tokenSym;
+        statusEl.textContent = "Sold Out";
+        mintBtn.disabled = true;
+        return true;
+      }
+      return false;
     }
 
     async function init(){
@@ -365,8 +370,10 @@
         tokenCAEl.textContent = tokenAddr;
         tokenExplorerLinkEl.href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${tokenAddr}`;
 
-        // sanity check
-        if (maxPerTx>0n && perMint>maxPerTx){
+        // SOLD OUT check first
+        if (applySoldOutIfNeeded(remainingHuman)) {
+          // keep connect disabled; mint already disabled
+        } else if (maxPerTx>0n && perMint>maxPerTx){
           statusEl.textContent = `Config error: tokensPerMint (${perMint}) > maxPerTx (${maxPerTx}).`;
           mintBtn.disabled = true;
         } else {
@@ -416,16 +423,53 @@
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
         remainingEl.textContent = fmt(remainingHuman) + " " + tokenSym;
+
+        // SOLD OUT after mint?
+        applySoldOutIfNeeded(remainingHuman);
       }catch(e){
         statusEl.textContent = prettyError(e) || "Mint failed";
       } finally {
-        mintBtn.disabled = false;
+        // re-enable mint only if not sold out
+        if (!/Sold Out/i.test(statusEl.textContent)) mintBtn.disabled = false;
       }
     }
 
-    connectBtn.onclick = connect;
-    mintBtn.onclick = mint;
-    init();
+    // Boot
+    (function init(){
+      // initial CA + copy behavior set here too (in case wallet never connects)
+      const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
+      tokenCAEl.textContent = TOKEN_CA_FALLBACK;
+      tokenExplorerLinkEl.href = href;
+      tokenCAEl.addEventListener('click', async () => {
+        const txt = tokenCAEl.textContent.trim();
+        const ok = await copyToClipboard(txt);
+        const old = tokenCAEl.textContent;
+        tokenCAEl.textContent = ok ? "Copied!" : "Copy failed";
+        setTimeout(()=> tokenCAEl.textContent = old, 900);
+      });
+
+      // web3-onboard init
+      (async () => {
+        try {
+          await ensureEthers();
+          const OnboardCtor = getOnboardCtor();
+          const injectedF = getInjected();
+          const wcF = getWC();
+          if (OnboardCtor && injectedF){
+            const wallets = [ injectedF() ];
+            if (wcF) { try { wallets.push(wcF({ projectId: WC_PROJECT_ID })); } catch(e){} }
+            onboard = OnboardCtor({
+              wallets,
+              chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
+              appMetadata: { name:"FOCO Mint", description:"Mint Fortune Cookie (FOCO) tokens" }
+            });
+          }
+        } catch(e){ statusEl.textContent = prettyError(e) || "Init error"; }
+      })();
+
+      q("connectBtn").onclick = connect;
+      q("mintBtn").onclick = mint;
+    })();
   </script>
 </body>
 </html>
