@@ -97,7 +97,7 @@
     a{color:#bcd1ff; text-decoration:underline}
     .addr{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
     .copyable{cursor:pointer; user-select:all}
-    .hint{font-size:12px; color:var(--muted); margin-top:2px; text-align:right}
+    .hint{font-size:12px; color:#9fb0da; margin-top:2px; text-align:right}
 
     /* Loading overlay */
     .overlay{
@@ -158,9 +158,9 @@
     <div class="footer">
       <button id="connectBtn" class="btn">Connect Wallet</button>
       <button id="mintBtn" class="btn purple" disabled>Mint</button>
-      <!-- NEW: Add FOCO to Wallet -->
+      <!-- Add FOCO to Wallet -->
       <button id="watchBtn" class="btn" disabled>Add FOCO to Wallet</button>
-      <!-- NEW: X (Twitter) link with logo -->
+      <!-- X (Twitter) link with logo -->
       <a class="xlink" href="https://x.com/FOCOGiwa" target="_blank" rel="noopener noreferrer" title="FOCO on X">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.244 2H21l-6.54 7.48L22.5 22H15.9l-4.6-6.15L6.02 22H3.26l6.98-7.98L1.5 2h6.78l4.15 5.58L18.24 2Zm-1.16 18.3h1.76L7.01 3.63H5.2l11.884 16.66Z"/></svg>
       </a>
@@ -295,7 +295,6 @@
       try{
         await ensureEthers();
         setLoading(true, "Connecting wallet…");
-        // connectBtn.disabled = true;  // toggle model: buton disable etmiyoruz
 
         let eip1193;
         if (onboard){
@@ -366,21 +365,34 @@
           mintBtn.disabled = false;
         }
 
-        // NEW: enable "Add FOCO to Wallet"
+        // enable "Add FOCO to Wallet" (raw EIP-1193 request)
         if (watchBtn){
           watchBtn.disabled = false;
           watchBtn.onclick = async () => {
             try{
-              await provider.send('wallet_watchAsset', {
-                type: 'ERC20',
-                options: { address: tokenAddr, symbol: (tokenSym || 'FOCO').slice(0,11), decimals: tokenDec }
+              const raw = (provider && (provider.provider || provider._provider)) || window.ethereum;
+              if (!raw || !raw.request) throw new Error("Wallet doesn't support watchAsset");
+              const wasAdded = await raw.request({
+                method: 'wallet_watchAsset',
+                params: {
+                  type: 'ERC20',
+                  options: {
+                    address: tokenAddr,
+                    symbol: (tokenSym || 'FOCO').slice(0,11),
+                    decimals: Number(tokenDec) || 18
+                    // image: 'https://yourcdn.com/foco.png' // optional
+                  }
+                }
               });
-              statusEl.textContent = "Token added to wallet";
-            }catch(e){ statusEl.textContent = prettyError(e); }
+              statusEl.textContent = wasAdded ? 'Token added to wallet' : 'Action cancelled';
+            }catch(e){
+              const msg = (e && (e.message || e.shortMessage)) || 'wallet_watchAsset not supported by this wallet';
+              statusEl.textContent = msg;
+            }
           };
         }
 
-        // NEW: toggle to Disconnect (BUT keep clickable)
+        // toggle to Disconnect
         isConnected = true;
         connectBtn.textContent = "Disconnect";
         connectBtn.disabled = false;
@@ -388,7 +400,7 @@
 
       }catch(e){
         statusEl.textContent = prettyError(e) || "Connection error";
-        connectBtn.disabled = false; // allow retry
+        connectBtn.disabled = false;
         connectBtn.textContent = "Connect Wallet";
         connectBtn.onclick = connect;
       } finally {
@@ -399,7 +411,6 @@
     async function disconnect(){
       try{
         setLoading(true, "Disconnecting…");
-        // if onboard is present, properly disconnect the wallet
         if (onboard){
           try {
             const state = onboard.state.get();
@@ -468,7 +479,6 @@
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         remainingEl.textContent = ethers.formatUnits(rawBal, tokenDec) + " " + tokenSym;
 
-        // SOLD OUT after mint?
         if (rawBal === 0n) {
           statusEl.textContent = "Sold Out";
         }
