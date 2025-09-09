@@ -67,6 +67,8 @@
     .muted{color:var(--muted); font-size:14px}
     a{color:#bcd1ff; text-decoration:underline}
     .addr{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;}
+    .copyable{cursor:pointer; user-select:all}
+    .hint{font-size:12px; color:var(--muted); margin-top:2px}
   </style>
 </head>
 <body>
@@ -84,7 +86,15 @@
       <div class="row"><div class="muted">Wallet limit</div><div id="walletLimit" class="pill">—</div></div>
       <div class="row"><div class="muted">You minted</div><div id="youMinted" class="pill">—</div></div>
       <div class="row"><div class="muted">Minter balance (remaining)</div><div id="remaining" class="pill">—</div></div>
-      <div class="row"><div class="muted">Token (CA)</div><div id="tokenCA" class="pill addr">—</div></div>
+
+      <!-- Token CA (click to copy) + separate explorer link -->
+      <div class="row">
+        <div class="muted">Token (CA)</div>
+        <div style="display:flex; flex-direction:column; align-items:flex-end">
+          <div id="tokenCA" class="pill addr copyable" title="Click to copy">—</div>
+          <div class="hint"><a id="tokenExplorerLink" href="#" target="_blank" rel="noreferrer">Open in Explorer</a></div>
+        </div>
+      </div>
     </div>
 
     <div class="footer">
@@ -144,11 +154,23 @@
     const statusEl = q("status");
     const accountEl = q("account"), networkEl = q("network"), priceEl = q("price");
     const perMintEl = q("perMint"), maxPerTxEl = q("maxPerTx"), walletLimitEl = q("walletLimit");
-    const youMintedEl = q("youMinted"), remainingEl = q("remaining"), tokenCAEl = q("tokenCA");
+    const youMintedEl = q("youMinted"), remainingEl = q("remaining");
+    const tokenCAEl = q("tokenCA"), tokenExplorerLinkEl = q("tokenExplorerLink");
     const connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
 
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
     const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
+
+    // Clipboard copy with fallback
+    async function copyToClipboard(text){
+      try{
+        await navigator.clipboard.writeText(text);
+        return true;
+      }catch{
+        const ta=document.createElement('textarea'); ta.value=text; document.body.appendChild(ta);
+        ta.select(); const ok=document.execCommand('copy'); document.body.removeChild(ta); return ok;
+      }
+    }
 
     // load ethers with fallback CDNs
     function loadScript(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.async=false;s.onload=res;s.onerror=()=>rej(new Error('Failed '+src));document.head.appendChild(s);});}
@@ -203,9 +225,21 @@
             appMetadata: { name:"FOCO Mint", description:"Mint Fortune Cookie (FOCO) tokens" }
           });
         }
-        // show fallback token CA immediately
+
+        // seed CA UI with fallback
         const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${TOKEN_CA_FALLBACK}`;
-        tokenCAEl.innerHTML = `<a class="addr" target="_blank" href="${href}">${TOKEN_CA_FALLBACK}</a>`;
+        tokenCAEl.textContent = TOKEN_CA_FALLBACK;
+        tokenExplorerLinkEl.href = href;
+
+        // click-to-copy behavior
+        tokenCAEl.addEventListener('click', async () => {
+          const txt = tokenCAEl.textContent.trim();
+          const ok = await copyToClipboard(txt);
+          const old = tokenCAEl.textContent;
+          tokenCAEl.textContent = ok ? "Copied!" : "Copy failed";
+          setTimeout(()=> tokenCAEl.textContent = old, 900);
+        });
+
       }catch(e){ statusEl.textContent = prettyError(e) || "Init error"; }
     }
 
@@ -266,10 +300,11 @@
         youMintedEl.textContent  = fmt(youMinted) + " " + tokenSym;
         remainingEl.textContent  = fmt(remainingHuman) + " " + tokenSym;
 
-        const tokenHref = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${tokenAddr}`;
-        tokenCAEl.innerHTML = `<a class="addr" target="_blank" href="${tokenHref}">${tokenAddr}</a>`;
+        // update CA + explorer link
+        tokenCAEl.textContent = tokenAddr;
+        tokenExplorerLinkEl.href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/address/${tokenAddr}`;
 
-        // Quick config sanity check
+        // sanity check
         if (maxPerTx>0n && perMint>maxPerTx){
           statusEl.textContent = `Config error: tokensPerMint (${perMint}) > maxPerTx (${maxPerTx}).`;
           mintBtn.disabled = true;
