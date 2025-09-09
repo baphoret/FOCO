@@ -1,91 +1,88 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <title>FOCO Mint</title>
   <style>
     :root{
-      --bg:#0a0f1f; --card:#121735; --text:#e6ecff; --muted:#9aa7cc; --primary:#4b6cff;
-      --cookie:#C58E4B;
+      --bg:#0a0f1f; --card:#141a3b; --text:#e8eeff; --muted:#9fb0da;
+      --primary:#6b7bff; --primary-2:#9b6bff; --accent:#C58E4B; --accent-2:#ffd9a3;
     }
     *{box-sizing:border-box}
     html,body{height:100%}
     body{
-      margin:0; color:var(--text); font-family:system-ui,Segoe UI,Roboto,Ubuntu,Arial,sans-serif;
+      margin:0; color:var(--text);
+      font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, Inter, Arial, sans-serif;
       display:flex; justify-content:center; align-items:flex-start;
 
-      /* Fortune Cookie themed background with bigger cookies */
+      /* Fortune-cookie themed background — BIG cookies 🍪 */
       background:
         radial-gradient(1200px 800px at 70% -10%, rgba(255,255,255,.06), transparent 60%),
-        radial-gradient(900px 600px at -20% 120%, rgba(75,108,255,.15), transparent 60%),
-        url("data:image/svg+xml;utf8, \
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'> \
-          <rect width='100' height='100' fill='none'/> \
-          <g opacity='0.16'> \
-            <path d='M30 42 Q50 24 70 42 Q50 60 30 42 Z' fill='%23C58E4B'/> \
-            <rect x='62' y='32' width='22' height='5' rx='1.5' fill='%23ffffff' transform='rotate(18 73 34.5)'/> \
-          </g> \
+        radial-gradient(900px 600px at -20% 120%, rgba(155,107,255,.18), transparent 60%),
+        url("data:image/svg+xml;utf8,\
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 140 140'>\
+          <rect width='140' height='140' fill='none'/>\
+          <g opacity='0.22'>\
+            <path d='M40 62 Q70 34 100 62 Q70 90 40 62 Z' fill='%23C58E4B'/>\
+            <rect x='86' y='47' width='32' height='6' rx='2' fill='%23ffffff' transform='rotate(18 102 50)'/>\
+          </g>\
         </svg>");
-      background-size: auto, auto, 160px 160px; /* bigger cookies */
+      background-size:auto, auto, 220px 220px; /* BIGGER cookies */
+      animation:bgfloat 24s linear infinite;
+    }
+    @keyframes bgfloat{
+      0%{background-position:0 0, 0 0, 0 0}
+      50%{background-position:0 0, 0 0, 120px 90px}
+      100%{background-position:0 0, 0 0, 0 0}
     }
     .card{
-      width:100%; max-width:640px; margin:6vh 16px; background:var(--card);
-      border-radius:16px; padding:22px; box-shadow:0 12px 30px rgba(0,0,0,.35);
-      border:1px solid rgba(255,255,255,.06);
+      width:100%; max-width:720px; margin:6vh 18px; background:var(--card);
+      border-radius:18px; padding:26px; box-shadow:0 18px 40px rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.08); position:relative; overflow:hidden;
     }
-    h1{margin:0 0 6px; font-size:24px}
-    .muted{color:var(--muted); font-size:14px}
-    .rows{display:grid; grid-auto-rows:minmax(28px,auto); gap:10px; margin-top:16px}
+    .ribbon{
+      position:absolute; inset:auto -40px -40px auto; transform:rotate(-18deg);
+      background:linear-gradient(135deg, var(--accent-2), var(--accent));
+      color:#5a3c1b; padding:6px 18px; border-radius:12px; font-weight:800;
+      box-shadow:0 4px 16px rgba(197,142,75,.35);
+    }
+    h1{margin:0 0 6px; font-size:28px; letter-spacing:.2px}
+    .sub{color:var(--muted); font-size:14px}
+    .rows{display:grid; grid-auto-rows:minmax(28px,auto); gap:12px; margin:18px 0}
     .row{display:flex; justify-content:space-between; align-items:center; gap:10px}
     .pill{
-      background:#0e1430; padding:6px 10px; border-radius:10px; border:1px solid #2a325b;
+      background:#0f1533; padding:8px 12px; border-radius:12px; border:1px solid #2a335f;
       min-width:160px; text-align:right; font-variant-numeric:tabular-nums;
     }
-    .footer{display:flex; gap:10px; align-items:center; margin-top:14px; flex-wrap:wrap}
+    .footer{display:flex; gap:12px; align-items:center; margin-top:14px; flex-wrap:wrap}
     .btn{
-      border:0; background:var(--primary); color:#fff; padding:10px 14px; border-radius:12px;
-      font-weight:700; cursor:pointer; transition:transform .04s ease;
+      border:0; color:#fff; padding:12px 16px; border-radius:14px; cursor:pointer; font-weight:800;
+      background:linear-gradient(135deg, var(--primary), var(--primary-2));
+      box-shadow:0 10px 22px rgba(107,123,255,.35), inset 0 0 0 1px rgba(255,255,255,.1);
+      transition:transform .05s ease, filter .2s ease;
     }
+    .btn:hover{filter:brightness(1.05)}
     .btn:active{transform:translateY(1px)}
     .btn:disabled{opacity:.6; cursor:not-allowed}
-    a{color:#a9c6ff; text-decoration:underline}
+    .muted{color:var(--muted); font-size:14px}
+    a{color:#bcd1ff; text-decoration:underline}
   </style>
 </head>
 <body>
   <div class="card">
+    <div class="ribbon">🥠 Fortune Time</div>
     <h1>Fortune Cookie (FOCO) — Mint</h1>
-    <div class="muted">Connect your wallet and mint in one click.</div>
+    <div class="sub">Connect a wallet (MetaMask, Rabby, or WalletConnect) and mint in one click.</div>
 
     <div class="rows">
-      <div class="row">
-        <div class="muted">Account</div>
-        <div id="account" class="pill">—</div>
-      </div>
-      <div class="row">
-        <div class="muted">Network / Chain ID</div>
-        <div id="network" class="pill">—</div>
-      </div>
-      <div class="row">
-        <div class="muted">Price (per mint)</div>
-        <div id="price" class="pill">—</div>
-      </div>
-      <div class="row">
-        <div class="muted">Tokens per mint</div>
-        <div id="perMint" class="pill">—</div>
-      </div>
-      <div class="row">
-        <div class="muted">Wallet limit</div>
-        <div id="walletLimit" class="pill">—</div>
-      </div>
-      <div class="row">
-        <div class="muted">You minted</div>
-        <div id="youMinted" class="pill">—</div>
-      </div>
-      <div class="row">
-        <div class="muted">Minter balance (remaining)</div>
-        <div id="remaining" class="pill">—</div>
-      </div>
+      <div class="row"><div class="muted">Account</div><div id="account" class="pill">—</div></div>
+      <div class="row"><div class="muted">Network / Chain ID</div><div id="network" class="pill">—</div></div>
+      <div class="row"><div class="muted">Price (per mint)</div><div id="price" class="pill">—</div></div>
+      <div class="row"><div class="muted">Tokens per mint</div><div id="perMint" class="pill">—</div></div>
+      <div class="row"><div class="muted">Wallet limit</div><div id="walletLimit" class="pill">—</div></div>
+      <div class="row"><div class="muted">You minted</div><div id="youMinted" class="pill">—</div></div>
+      <div class="row"><div class="muted">Minter balance (remaining)</div><div id="remaining" class="pill">—</div></div>
     </div>
 
     <div class="footer">
@@ -95,23 +92,19 @@
     </div>
   </div>
 
-  <!-- Web3-Onboard (Core + Injected + Coinbase; WalletConnect optional) -->
+  <!-- Web3-Onboard (Core + Injected + WalletConnect UMD builds) -->
   <script src="https://unpkg.com/@web3-onboard/core/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/@web3-onboard/injected-wallets/dist/umd/index.min.js"></script>
-  <script src="https://unpkg.com/@web3-onboard/coinbase/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/@web3-onboard/walletconnect/dist/umd/index.min.js"></script>
-
   <!-- Ethers v6 -->
   <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 
   <script>
-    // ====== Configure your contract here ======
-    const MINTER_ADDRESS = "0x5952EAD3fCB11251A9755abFE70A3290366D2603";
+    // ====== Configure ======
+    const MINTER_ADDRESS = "0x5952EAD3fCB11251A9755abFE70A3290366D2603"; // <-- replace with your contract
+    const WC_PROJECT_ID = "fe5cba6a3f99f7da13a7f4d58d9bee81"; // replace for WalletConnect modal (or leave to skip WC)
 
-    // Optional: add your WalletConnect Cloud projectId (leave empty to skip WC)
-    const WALLETCONNECT_PROJECT_ID = ""; // e.g. "abc123..."; if empty, WC is not used
-
-    // GIWA Sepolia network
+    // GIWA Sepolia
     const GIWA = {
       chainId: '0x164ce', // 91342
       chainName: 'GIWA Sepolia',
@@ -131,7 +124,7 @@
       "function mint() payable"
     ];
     const ERC20_ABI = [
-      "function balanceOf(address owner) view returns (uint256)",
+      "function balanceOf(address) view returns (uint256)",
       "function decimals() view returns (uint8)",
       "function symbol() view returns (string)"
     ];
@@ -148,76 +141,75 @@
     const mintBtn = document.getElementById("mintBtn");
     const statusEl = document.getElementById("status");
 
-    let provider, signer, minter, token, tokenDec = 18, tokenSym = "FOCO";
+    let onboard, provider, signer, minter, token, tokenDec = 18, tokenSym = "FOCO";
     let priceWei = 0n, perMint = 0n, maxPerWallet = 0n;
 
-    function fmt(n, d=0){
-      try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); }
-      catch { return String(n); }
-    }
+    function fmt(n, d=0){ try{ return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); }catch{ return String(n);} }
+    function short(addr){ return addr ? addr.slice(0,6)+'…'+addr.slice(-4) : '—'; }
 
-    // --- Init Web3-Onboard ---
-    const injected = window.OnboardInjectedWallets.default();         // MetaMask, Rabby, Brave...
-    const coinbaseModule = window.OnboardCoinbase.default();          // optional
-    const walletsList = [injected, coinbaseModule];
+    // ----- Init Web3-Onboard -----
+    (function initOnboard(){
+      const injected = window.OnboardInjectedWallets.default(); // MetaMask, Rabby, Brave...
+      let wallets = [injected];
 
-    if (WALLETCONNECT_PROJECT_ID) {
-      const walletConnect = window.OnboardWalletConnect.default({
-        projectId: WALLETCONNECT_PROJECT_ID
+      // Add WalletConnect if projectId provided
+      try{
+        if (WC_PROJECT_ID && !WC_PROJECT_ID.startsWith('YOUR_')) {
+          const wc = window.OnboardWalletConnect.default({ projectId: WC_PROJECT_ID });
+          wallets.push(wc);
+        }
+      } catch(e){ console.warn('WalletConnect init failed:', e); }
+
+      onboard = window.Onboard.default({
+        wallets,
+        chains: [{
+          id: GIWA.chainId,
+          token: GIWA.nativeCurrency.symbol,
+          label: GIWA.chainName,
+          rpcUrl: GIWA.rpcUrls[0]
+        }],
+        appMetadata: {
+          name: "FOCO Mint",
+          description: "Mint Fortune Cookie (FOCO) tokens",
+          recommendedInjectedWallets: [
+            { name: 'MetaMask', url: 'https://metamask.io' },
+            { name: 'Rabby', url: 'https://rabby.io' }
+          ]
+        }
       });
-      walletsList.push(walletConnect);
-    }
-
-    const onboard = window.OnboardCore.Onboard({
-      wallets: walletsList,
-      chains: [{
-        id: GIWA.chainId,
-        token: GIWA.nativeCurrency.symbol,
-        label: GIWA.chainName,
-        rpcUrl: GIWA.rpcUrls[0]
-      }],
-      appMetadata: {
-        name: 'FOCO Mint',
-        description: 'Mint FOCO tokens on GIWA Sepolia',
-        recommendedInjectedWallets: [
-          { name: 'MetaMask', url: 'https://metamask.io' },
-          { name: 'Rabby', url: 'https://rabby.io' }
-        ]
-      }
-    });
+    })();
 
     async function connect(){
       try{
-        // open wallet picker
         const wallets = await onboard.connectWallet();
         if (!wallets || !wallets.length) throw new Error('No wallet selected');
+
         const wallet = wallets[0];
 
-        // ensure GIWA chain
-        await onboard.setChain({ wallet: wallet.label, chainId: GIWA.chainId });
+        // Switch to GIWA Sepolia if needed
+        await onboard.setChain({ chainId: GIWA.chainId, wallet: wallet.label });
 
-        // wrap EIP-1193 provider with ethers
+        // Wrap EIP-1193 provider with ethers
         const eip1193 = wallet.provider;
         provider = new ethers.BrowserProvider(eip1193);
         signer = await provider.getSigner();
         const addr = await signer.getAddress();
 
-        accountEl.textContent = addr.slice(0,6)+"…"+addr.slice(-4);
+        accountEl.textContent = short(addr);
 
         const net = await provider.getNetwork();
         networkEl.textContent = `${String(Number(net.chainId))} / ${GIWA.chainName}`;
 
-        // instantiate contracts
         minter = new ethers.Contract(MINTER_ADDRESS, MINTER_ABI, signer);
 
-        // read on-chain settings
+        // On-chain config
         priceWei = await minter.priceWei();
         perMint = await minter.tokensPerMintHuman();
-        const maxPerTx = await minter.maxPerTxHuman();
+        const maxPerTx = await minter.maxPerTxHuman(); // not shown, but available
         maxPerWallet = await minter.maxPerWalletHuman();
         const youMinted = await minter.mintedHuman(addr);
 
-        // token info & remaining
+        // Token info & remaining balance
         const tokenAddr = await minter.token();
         token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
         tokenDec = await token.decimals().catch(()=>18);
@@ -225,7 +217,7 @@
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
 
-        // update UI
+        // Write UI
         priceEl.textContent = ethers.formatEther(priceWei) + " " + GIWA.nativeCurrency.symbol;
         perMintEl.textContent = fmt(perMint) + " " + tokenSym;
         walletLimitEl.textContent = (maxPerWallet==0n) ? "Unlimited" : (fmt(maxPerWallet) + " " + tokenSym);
@@ -246,15 +238,13 @@
         const tx = await minter.mint({ value: priceWei });
         statusEl.textContent = "Waiting for confirmation…";
         const rc = await tx.wait();
-
         const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/tx/${tx.hash}`;
         statusEl.innerHTML = `Done ✅ Tx: <a target="_blank" href="${href}" rel="noreferrer">${tx.hash.slice(0,10)}…</a>`;
 
-        // refresh counters
+        // Refresh counters
         const addr = await signer.getAddress();
         const youMinted = await minter.mintedHuman(addr);
         youMintedEl.textContent = fmt(youMinted) + " " + tokenSym;
-
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
         remainingEl.textContent = fmt(remainingHuman) + " " + tokenSym;
