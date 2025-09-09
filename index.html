@@ -21,19 +21,19 @@
         radial-gradient(1200px 800px at 70% -10%, rgba(255,255,255,.06), transparent 60%),
         radial-gradient(900px 600px at -20% 120%, rgba(155,107,255,.18), transparent 60%),
         url("data:image/svg+xml;utf8,\
-        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'>\
-          <rect width='180' height='180' fill='none'/>\
+        <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 220 220'>\
+          <rect width='220' height='220' fill='none'/>\
           <g opacity='0.22'>\
-            <path d='M50 80 Q90 42 130 80 Q90 118 50 80 Z' fill='%23C58E4B'/>\
-            <rect x='110' y='60' width='44' height='8' rx='2' fill='%23ffffff' transform='rotate(18 132 64)'/>\
+            <path d='M60 100 Q110 50 160 100 Q110 150 60 100 Z' fill='%23C58E4B'/>\
+            <rect x='135' y='78' width='54' height='9' rx='2' fill='%23ffffff' transform='rotate(18 162 82)'/>\
           </g>\
         </svg>");
-      background-size:auto, auto, 260px 260px;
+      background-size:auto, auto, 300px 300px;
       animation:bgfloat 24s linear infinite;
     }
     @keyframes bgfloat{
       0%{background-position:0 0, 0 0, 0 0}
-      50%{background-position:0 0, 0 0, 140px 110px}
+      50%{background-position:0 0, 0 0, 160px 130px}
       100%{background-position:0 0, 0 0, 0 0}
     }
     .card{
@@ -91,19 +91,16 @@
     </div>
   </div>
 
-  <!-- Web3-Onboard UMD (robust globals) -->
+  <!-- Web3-Onboard UMD -->
   <script src="https://unpkg.com/@web3-onboard/core/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/@web3-onboard/injected-wallets/dist/umd/index.min.js"></script>
   <script src="https://unpkg.com/@web3-onboard/walletconnect/dist/umd/index.min.js"></script>
-  <!-- Ethers v6 -->
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.10.0/dist/ethers.min.js"></script>
 
   <script>
-    // ====== Configure ======
+    // ====== Config ======
     const MINTER_ADDRESS = "0x5952EAD3fCB11251A9755abFE70A3290366D2603"; // <-- replace
-    const WC_PROJECT_ID = "fe5cba6a3f99f7da13a7f4d58d9bee81"; // optional
+    const WC_PROJECT_ID  = "fe5cba6a3f99f7da13a7f4d58d9bee81"; // optional (shows WC if valid)
 
-    // GIWA Sepolia
     const GIWA = {
       chainId: '0x164ce', // 91342
       chainName: 'GIWA Sepolia',
@@ -112,7 +109,6 @@
       blockExplorerUrls: ['https://sepolia-explorer.giwa.io']
     };
 
-    // Minimal ABIs
     const MINTER_ABI = [
       "function token() view returns (address)",
       "function priceWei() view returns (uint256)",
@@ -128,99 +124,100 @@
       "function symbol() view returns (string)"
     ];
 
-    // UI
+    // ----- Helpers -----
     const q = id => document.getElementById(id);
+    const statusEl = q("status");
     const accountEl = q("account"), networkEl = q("network"), priceEl = q("price");
     const perMintEl = q("perMint"), walletLimitEl = q("walletLimit"), youMintedEl = q("youMinted");
-    const remainingEl = q("remaining"), connectBtn = q("connectBtn"), mintBtn = q("mintBtn"), statusEl = q("status");
-
-    let onboard, provider, signer, minter, token, tokenDec = 18, tokenSym = "FOCO";
-    let priceWei = 0n, perMint = 0n, maxPerWallet = 0n;
-
+    const remainingEl = q("remaining"), connectBtn = q("connectBtn"), mintBtn = q("mintBtn");
     const fmt = (n, d=0) => { try { return Number(n).toLocaleString("en-US",{maximumFractionDigits:d}); } catch { return String(n); } };
     const short = a => a ? a.slice(0,6)+"…"+a.slice(-4) : "—";
 
-    // ---- Robust UMD detection & init ----
+    // Dynamically load a script (with fallback CDNs)
+    function loadScript(src){ return new Promise((res, rej)=>{ const s=document.createElement('script'); s.src=src; s.async=false; s.onload=res; s.onerror=()=>rej(new Error('Failed: '+src)); document.head.appendChild(s); }); }
+
+    // Ensure ethers is present (try cdnjs then jsDelivr)
+    async function ensureEthers(){
+      if (window.ethers) return;
+      try { await loadScript("https://cdnjs.cloudflare.com/ajax/libs/ethers/6.11.1/ethers.umd.min.js"); }
+      catch(e){ console.warn(e); }
+      if (!window.ethers) {
+        try { await loadScript("https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.min.js"); }
+        catch(e){ console.warn(e); }
+      }
+      if (!window.ethers) throw new Error("Failed to load ethers.js");
+    }
+
+    // Onboard UMD helpers
     function getOnboardCtor(){
-      // Accept any of the UMD shapes
       if (window.Onboard && typeof window.Onboard === 'function') return window.Onboard;
       if (window.Onboard && typeof window.Onboard.default === 'function') return window.Onboard.default;
       if (window.OnboardCore && typeof window.OnboardCore.Onboard === 'function') return window.OnboardCore.Onboard;
       return null;
     }
-    function getInjectedFactory(){
-      const mod = window.OnboardInjectedWallets;
-      if (!mod) return null;
-      return typeof mod.default === 'function' ? mod.default : (typeof mod === 'function' ? mod : null);
-    }
-    function getWalletConnectFactory(){
-      const mod = window.OnboardWalletConnect;
-      if (!mod) return null;
-      return typeof mod.default === 'function' ? mod.default : (typeof mod === 'function' ? mod : null);
-    }
+    function getInjectedFactory(){ const m=window.OnboardInjectedWallets; return m ? (m.default||m) : null; }
+    function getWalletConnectFactory(){ const m=window.OnboardWalletConnect; return m ? (m.default||m) : null; }
 
-    (function initOnboard(){
-      const OnboardCtor = getOnboardCtor();
-      const injectedFactory = getInjectedFactory();
-      const wcFactory = getWalletConnectFactory();
+    let onboard, provider, signer, minter, token, tokenDec=18, tokenSym="FOCO";
+    let priceWei=0n, perMint=0n, maxPerWallet=0n;
 
-      if (!OnboardCtor || !injectedFactory) {
-        console.warn("Onboard UMD not loaded — will fall back to injected provider only.");
-        onboard = null; // fallback path will be used
-        return;
-      }
-      const wallets = [ injectedFactory() ];
+    // Init Onboard after ethers is ready
+    async function init(){
+      try{
+        await ensureEthers();
 
-      // Add WalletConnect if projectId provided
-      if (WC_PROJECT_ID && !WC_PROJECT_ID.startsWith('YOUR_') && wcFactory) {
-        try {
-          wallets.push(wcFactory({ projectId: WC_PROJECT_ID }));
-        } catch (e) {
-          console.warn("WalletConnect init failed:", e);
+        const OnboardCtor = getOnboardCtor();
+        const injectedFactory = getInjectedFactory();
+        const wcFactory = getWalletConnectFactory();
+
+        if (OnboardCtor && injectedFactory) {
+          const wallets = [ injectedFactory() ];
+          if (WC_PROJECT_ID && !WC_PROJECT_ID.startsWith('YOUR_') && wcFactory) {
+            try { wallets.push(wcFactory({ projectId: WC_PROJECT_ID })); } catch(e){ console.warn("WC init failed:", e); }
+          }
+          onboard = OnboardCtor({
+            wallets,
+            chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
+            appMetadata: {
+              name: "FOCO Mint",
+              description: "Mint Fortune Cookie (FOCO) tokens",
+              recommendedInjectedWallets: [
+                { name: 'MetaMask', url: 'https://metamask.io' },
+                { name: 'Rabby', url: 'https://rabby.io' }
+              ]
+            }
+          });
+        } else {
+          console.warn("Onboard not available — will use injected provider fallback.");
         }
+      }catch(e){
+        console.error(e);
+        statusEl.textContent = e.message || "Init error";
       }
-
-      onboard = OnboardCtor({
-        wallets,
-        chains: [{ id: GIWA.chainId, token: GIWA.nativeCurrency.symbol, label: GIWA.chainName, rpcUrl: GIWA.rpcUrls[0] }],
-        appMetadata: {
-          name: "FOCO Mint",
-          description: "Mint Fortune Cookie (FOCO) tokens",
-          recommendedInjectedWallets: [
-            { name: 'MetaMask', url: 'https://metamask.io' },
-            { name: 'Rabby', url: 'https://rabby.io' }
-          ]
-        }
-      });
-    })();
+    }
 
     async function connect(){
       try{
-        let eip1193;
+        await ensureEthers();
 
+        let eip1193;
         if (onboard) {
           const wallets = await onboard.connectWallet();
           if (!wallets || !wallets.length) throw new Error("No wallet selected");
           const wallet = wallets[0];
-
-          // Ensure GIWA Sepolia
           await onboard.setChain({ chainId: GIWA.chainId, wallet: wallet.label });
-
           eip1193 = wallet.provider;
         } else {
-          // Fallback: injected provider only
-          if (!window.ethereum) throw new Error("No wallet provider found (install MetaMask or use WalletConnect)");
+          if (!window.ethereum) throw new Error("No wallet provider found");
           eip1193 = window.ethereum;
-          const providerTmp = new ethers.BrowserProvider(eip1193);
-          const net = await providerTmp.getNetwork();
+          const tmp = new ethers.BrowserProvider(eip1193);
+          const net = await tmp.getNetwork();
           if (net.chainId !== BigInt(parseInt(GIWA.chainId,16))) {
-            // Try to switch/add
             try {
               await eip1193.request({ method:'wallet_switchEthereumChain', params:[{ chainId: GIWA.chainId }] });
             } catch (e) {
-              if (e.code === 4902) {
-                await eip1193.request({ method:'wallet_addEthereumChain', params:[GIWA] });
-              } else { throw e; }
+              if (e.code === 4902) await eip1193.request({ method:'wallet_addEthereumChain', params:[GIWA] });
+              else throw e;
             }
           }
           await eip1193.request({ method:'eth_requestAccounts' });
@@ -236,22 +233,20 @@
 
         minter = new ethers.Contract(MINTER_ADDRESS, MINTER_ABI, signer);
 
-        // On-chain config
         priceWei = await minter.priceWei();
-        perMint = await minter.tokensPerMintHuman();
-        const maxPerTx = await minter.maxPerTxHuman();
+        perMint  = await minter.tokensPerMintHuman();
+        const maxPerTx = await minter.maxPerTxHuman(); // unused in UI
         maxPerWallet = await minter.maxPerWalletHuman();
         const youMinted = await minter.mintedHuman(addr);
 
-        // Token + remaining
         const tokenAddr = await minter.token();
         token = new ethers.Contract(tokenAddr, ERC20_ABI, signer);
         tokenDec = await token.decimals().catch(()=>18);
         tokenSym = await token.symbol().catch(()=> "TOKEN");
+
         const rawBal = await token.balanceOf(MINTER_ADDRESS);
         const remainingHuman = rawBal / (10n ** BigInt(tokenDec));
 
-        // UI
         priceEl.textContent = ethers.formatEther(priceWei) + " " + GIWA.nativeCurrency.symbol;
         perMintEl.textContent = fmt(perMint) + " " + tokenSym;
         walletLimitEl.textContent = (maxPerWallet==0n) ? "Unlimited" : (fmt(maxPerWallet) + " " + tokenSym);
@@ -268,6 +263,7 @@
 
     async function mint(){
       try{
+        await ensureEthers();
         statusEl.textContent = "Sending transaction…";
         const tx = await minter.mint({ value: priceWei });
         statusEl.textContent = "Waiting for confirmation…";
@@ -275,7 +271,6 @@
         const href = `${GIWA.blockExplorerUrls[0].replace(/\/$/,'')}/tx/${tx.hash}`;
         statusEl.innerHTML = `Done ✅ Tx: <a target="_blank" href="${href}" rel="noreferrer">${tx.hash.slice(0,10)}…</a>`;
 
-        // Refresh counters
         const addr = await signer.getAddress();
         const youMinted = await minter.mintedHuman(addr);
         youMintedEl.textContent = fmt(youMinted) + " " + tokenSym;
@@ -288,8 +283,10 @@
       }
     }
 
+    // Wire up buttons and init
     q("connectBtn").onclick = connect;
     q("mintBtn").onclick = mint;
+    init();
   </script>
 </body>
 </html>
